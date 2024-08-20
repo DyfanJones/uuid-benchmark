@@ -1,0 +1,104 @@
+---
+title: "readme"
+output: github_document
+---
+
+## Summary:
+
+Just playing around with different methods in generating uuid v4 in R. Comparing different benchmarks 
+
+* Rcpp implementation based off: https://github.com/rkg82/uuid-v4
+* package uuid: https://github.com/s-u/uuid
+* package uwu: https://github.com/JosiahParry/uwu
+* Base R implementation based off c++ implementation: https://github.com/rkg82/uuid-v4
+
+```{r setup, include=F}
+source("R/uuid.R")
+Rcpp::sourceCpp("src/uuid.cpp")
+```
+
+
+## Benchmark:
+
+Initially compare base R implementations.
+
+```{r atime_base}
+subject.size.vec <- unique(as.integer(10^seq(0,6,l=100)))
+atime.list <- atime::atime(
+  N = subject.size.vec,
+  base_loop = uuid_v4_base_loop(N),
+  base_vector = uuid_v4_base_vector(N)
+)
+
+atime.list
+plot(atime.list)
+## Compute and plot asymptotic reference lines:
+best.list <- atime::references_best(atime.list)
+## Compute and plot data size N for given time/memory.
+pred.list <- predict(best.list, seconds=.01, kilobytes=100)
+plot(pred.list)
+```
+
+
+```{r benchmark_base}
+N <- 10
+bm <- bench::mark(
+  base_loop = uuid_v4_base_loop(N),
+  base_vector = uuid_v4_base_vector(N),
+  relative = T,
+  check = F
+)
+
+bm
+
+plot(bm)
+```
+
+Will opt for `uuid_v4_base_vector` implementation for base R.
+
+```{r atime_comparison}
+atime.list <- atime::atime(
+  N = subject.size.vec,
+  base = uuid_v4_base_vector(N),
+  uuid = uuid::UUIDgenerate(n = N),
+  uwu = uwu::new_v4(N),
+  cpp = uuid_v4_cpp(N)
+)
+
+
+atime.list
+plot(atime.list)
+## Compute and plot asymptotic reference lines:
+best.list <- atime::references_best(atime.list)
+## Compute and plot data size N for given time/memory.
+pred.list <- predict(best.list, seconds=.01, kilobytes=100)
+plot(pred.list)
+```
+
+
+```{r benchmark_comparison}
+N <- 10
+bm <- bench::mark(
+  base = uuid_v4_base_vector(N),
+  uuid = uuid::UUIDgenerate(n = N),
+  uwu = uwu::new_v4(N),
+  cpp = uuid_v4_cpp(N),
+  relative = T,
+  check = F
+)
+
+bm
+
+plot(bm)
+```
+
+
+## Summary:
+
+It looks like the package `uwu` has the best performance. However I am really surprised in the base R implementation. It looks like it out performs the `uuid` package and only slightly slower than the c++ implementation.
+
+## Session Information:
+
+```{r sessioninfo}
+sessioninfo::session_info()
+```
